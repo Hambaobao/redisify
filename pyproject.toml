@@ -21,3 +21,6 @@ classifiers = [
 ]
 
 dependencies = ["redis"]
+
+[project.optional-dependencies]
+test = ["pytest>=7.0", "pytest-asyncio>=0.20.0"]
