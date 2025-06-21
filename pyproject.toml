@@ -1,0 +1,23 @@
+[build-system]
+build-backend = "setuptools.build_meta"
+requires = ["setuptools>=42", "wheel"]
+
+[tool.setuptools.packages.find]
+exclude = ["docs", "tests"]
+include = ["redisify*"]
+
+[project]
+authors = [{ name = "Lei Zhang", email = "jameszhang2880@gmail.com" }]
+description = "Redisify is a lightweight Python library that provides Redis-backed data structures like dicts, queues, locks, and semaphores, designed for distributed systems."
+license = { text = "MIT" }
+name = "redisify"
+readme = "README.md"
+requires-python = ">=3.10"
+version = "0.1.0"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+dependencies = ["redis"]
