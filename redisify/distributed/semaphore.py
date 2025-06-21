@@ -9,13 +9,13 @@ class RedisSemaphore:
     def __init__(
         self,
         redis: Redis,
-        name: str,
         limit: int,
+        name: str = None,
         timeout: int | None = None,
         sleep: float = 0.1,
     ):
         self.redis = redis
-        self.name = name
+        self.name = name or str(uuid.uuid4())
         self.limit = limit
         self.timeout = timeout
         self.token = str(uuid.uuid4())

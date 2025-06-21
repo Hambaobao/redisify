@@ -1,3 +1,4 @@
+import uuid
 from redis.asyncio import Redis
 
 
@@ -6,14 +7,14 @@ class RedisLock:
     def __init__(
         self,
         redis: Redis,
-        name: str,
+        name: str = None,
         timeout: int | None = None,
         sleep: float = 0.1,
         blocking: bool = True,
         blocking_timeout: float | None = None,
     ):
         self._lock = redis.lock(
-            name=name,
+            name=name or str(uuid.uuid4()),
             timeout=timeout,
             sleep=sleep,
             blocking=blocking,
