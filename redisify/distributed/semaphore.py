@@ -1,46 +1,44 @@
-import uuid
-import time
 import asyncio
+import time
 from redis.asyncio import Redis
+
+LUA_SEMAPHORE_COUNT = """
+-- KEYS[1] = semaphore key
+-- ARGV[1] = current timestamp
+-- ARGV[2] = limit
+
+local count = redis.call('LLEN', KEYS[1])
+if count < tonumber(ARGV[2]) then
+    redis.call('LPUSH', KEYS[1], ARGV[1])
+    return 1
+else
+    return 0
+end
+"""
 
 
 class RedisSemaphore:
 
-    def __init__(
-        self,
-        redis: Redis,
-        limit: int,
-        name: str = None,
-        timeout: int | None = None,
-        sleep: float = 0.1,
-    ):
+    def __init__(self, redis: Redis, limit: int, name: str, sleep: float = 0.1):
         self.redis = redis
-        self.name = name or str(uuid.uuid4())
+        self.name = f"redisify:semaphore:{name}"
         self.limit = limit
-        self.timeout = timeout
-        self.token = str(uuid.uuid4())
         self.sleep = sleep
+        self._script = self.redis.register_script(LUA_SEMAPHORE_COUNT)
 
-    async def acquire(self) -> bool:
-        now = time.time()
-
-        if self.timeout is not None:
-            await self.redis.zremrangebyscore(self.name, 0, now - self.timeout)
-
-        await self.redis.zadd(self.name, {self.token: now})
-        rank = await self.redis.zrank(self.name, self.token)
-        if rank is not None and rank < self.limit:
-            return True
-
-        await self.redis.zrem(self.name, self.token)
-        return False
+    async def acquire(self):
+        while True:
+            now = time.time()
+            ok = await self._script(keys=[self.name], args=[now, self.limit])
+            if ok == 1:
+                return True
+            await asyncio.sleep(self.sleep)
 
     async def release(self):
-        await self.redis.zrem(self.name, self.token)
+        await self.redis.rpop(self.name)
 
     async def __aenter__(self):
-        while not await self.acquire():
-            await asyncio.sleep(self.sleep)
+        await self.acquire()
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
