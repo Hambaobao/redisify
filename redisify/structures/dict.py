@@ -71,6 +71,11 @@ class RedisDict:
         val = await self.redis.hget(self.name, key_s)
         return self.serializer.deserialize(val) if val is not None else default
 
+    async def delete(self, key):
+        """Delete a single key-value pair by key."""
+        key_s = self.serializer.serialize(key)
+        await self.redis.hdel(self.name, key_s)
+
     async def setdefault(self, key, default):
         key_s = self.serializer.serialize(key)
         exists = await self.redis.hexists(self.name, key_s)
