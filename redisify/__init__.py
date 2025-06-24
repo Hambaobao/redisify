@@ -1,3 +1,4 @@
+from redisify.structures.set import RedisSet
 from redisify.structures.list import RedisList
 from redisify.structures.dict import RedisDict
 from redisify.structures.queue import RedisQueue
@@ -12,4 +13,5 @@ __all__ = [
     "RedisLock",
     "RedisSemaphore",
     "RedisLimiter",
+    "RedisSet",
 ]
