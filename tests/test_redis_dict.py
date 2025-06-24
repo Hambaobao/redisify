@@ -21,7 +21,8 @@ async def test_redis_dict():
 
     await rdict.update({"x": "100", "y": "200"})
     items = {}
-    async for k in await rdict.keys():
+    keys = await rdict.keys()
+    for k in keys:
         items[k] = await rdict.get(k)
     assert items["x"] == "100"
     assert "y" in items
