@@ -13,15 +13,15 @@ async def test_redis_queue():
     await queue.put("job2")
 
     assert await queue.peek() == "job1"
-    assert await queue.size() == 2
-    assert not await queue.is_empty()
+    assert await queue.qsize() == 2
+    assert not await queue.empty()
 
     job = await queue.get()
     assert job == "job1"
 
-    job2 = await queue.get_block(timeout=1)
+    job2 = await queue.get()
     assert job2 == "job2"
 
-    assert await queue.get() is None  # empty
+    assert await queue.get_nowait() is None  # empty
     await queue.clear()
-    assert await queue.is_empty()
+    assert await queue.empty()
