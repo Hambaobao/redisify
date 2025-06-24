@@ -2,7 +2,7 @@ import asyncio
 import time
 from redis.asyncio import Redis
 
-LUA_SEMAPHORE_COUNT = """
+LUA_SEMAPHORE_ACQUIRE = """
 -- KEYS[1] = semaphore key
 -- ARGV[1] = current timestamp
 -- ARGV[2] = limit
@@ -10,6 +10,18 @@ LUA_SEMAPHORE_COUNT = """
 local count = redis.call('LLEN', KEYS[1])
 if count < tonumber(ARGV[2]) then
     redis.call('LPUSH', KEYS[1], ARGV[1])
+    return 1
+else
+    return 0
+end
+"""
+
+LUA_SEMAPHORE_CAN_ACQUIRE = """
+-- KEYS[1] = semaphore key
+-- ARGV[1] = limit
+
+local count = redis.call('LLEN', KEYS[1])
+if count < tonumber(ARGV[1]) then
     return 1
 else
     return 0
@@ -24,12 +36,18 @@ class RedisSemaphore:
         self.name = f"redisify:semaphore:{name}"
         self.limit = limit
         self.sleep = sleep
-        self._script = self.redis.register_script(LUA_SEMAPHORE_COUNT)
+
+        self._script_can_acquire = self.redis.register_script(LUA_SEMAPHORE_CAN_ACQUIRE)
+        self._script_acquire = self.redis.register_script(LUA_SEMAPHORE_ACQUIRE)
+
+    async def can_acquire(self) -> bool:
+        ok = await self._script_can_acquire(keys=[self.name], args=[self.limit])
+        return ok == 1
 
     async def acquire(self):
         while True:
             now = time.time()
-            ok = await self._script(keys=[self.name], args=[now, self.limit])
+            ok = await self._script_acquire(keys=[self.name], args=[now, self.limit])
             if ok == 1:
                 return True
             await asyncio.sleep(self.sleep)
