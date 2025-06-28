@@ -55,6 +55,10 @@ class RedisSemaphore:
     async def release(self):
         await self.redis.rpop(self.name)
 
+    async def value(self) -> int:
+        """Get the current number of acquired semaphores."""
+        return await self.redis.llen(self.name)
+
     async def __aenter__(self):
         await self.acquire()
         return self

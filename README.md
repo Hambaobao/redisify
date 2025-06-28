@@ -212,6 +212,10 @@ async def api_call():
 # Run multiple concurrent calls
 tasks = [api_call() for _ in range(10)]
 await asyncio.gather(*tasks)
+
+# Check current semaphore value
+current_value = await semaphore.value()
+print(f"Currently {current_value} semaphores are acquired")
 ```
 
 ### RedisLimiter
