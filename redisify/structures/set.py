@@ -32,6 +32,9 @@ class RedisSet:
     async def clear(self):
         await self.redis.delete(self.name)
 
+    async def size(self):
+        return await self.redis.scard(self.name)
+
     async def __contains__(self, item):
         return await self.redis.sismember(self.name, self.serializer.serialize(item))
 
