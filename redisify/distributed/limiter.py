@@ -5,6 +5,25 @@ from redis.asyncio import Redis
 
 
 class RedisLimiter:
+    """
+    A distributed rate limiter implementation using Redis.
+    
+    This class provides a token bucket rate limiter that can be used to control
+    the rate of operations across multiple processes or servers. The limiter
+    implements a token bucket algorithm with automatic refill over time.
+    
+    The rate limiter maintains a bucket of tokens that are consumed by operations
+    and automatically refilled at a specified rate. Operations are only allowed
+    when tokens are available.
+    
+    Attributes:
+        redis: The Redis client instance
+        key: The Redis key name for this limiter
+        rate_limit: Maximum number of tokens (bucket capacity)
+        time_period: Time period in seconds to fully refill the bucket
+        refill_rate: Rate at which tokens are refilled (tokens per second)
+        sleep: Sleep duration between acquisition attempts
+    """
 
     def __init__(
         self,
@@ -15,11 +34,14 @@ class RedisLimiter:
         sleep: float = 0.1,
     ):
         """
-        :param redis: Redis client
-        :param name: Unique name for this limiter
-        :param rate_limit: Max number of tokens (bucket capacity)
-        :param time_period: Seconds to fully refill the bucket
-        :param sleep: Sleep time between retries
+        Initialize a Redis-based distributed rate limiter.
+        
+        Args:
+            redis: Redis client instance
+            name: Unique name for this limiter (auto-generated if None)
+            rate_limit: Maximum number of tokens (bucket capacity)
+            time_period: Time period in seconds to fully refill the bucket
+            sleep: Sleep duration between acquisition attempts in seconds
         """
         self.redis = redis
         _name = name or str(uuid.uuid4())
@@ -30,7 +52,19 @@ class RedisLimiter:
         self.sleep = sleep
 
     async def acquire(self) -> bool:
-        """Try to acquire a token. Return True if granted, else False."""
+        """
+        Try to acquire a token from the rate limiter.
+        
+        This method attempts to consume one token from the bucket. If tokens
+        are available, one is consumed and True is returned. If no tokens
+        are available, False is returned without blocking.
+        
+        The token bucket is automatically refilled based on the elapsed time
+        since the last refill, up to the maximum capacity.
+        
+        Returns:
+            True if a token was successfully acquired, False otherwise
+        """
         script = """
         local key = KEYS[1]
         local capacity = tonumber(ARGV[1])
@@ -66,7 +100,17 @@ class RedisLimiter:
         return int(allowed) == 1
 
     async def release(self):
-        """Manually return one token."""
+        """
+        Manually return one token to the bucket.
+        
+        This method adds one token back to the bucket, up to the maximum
+        capacity. This can be useful for implementing rollback mechanisms
+        or compensating for operations that don't actually consume resources.
+        
+        Note:
+            This method is typically used in exception handling scenarios
+            to rollback token consumption.
+        """
         script = """
         local key = KEYS[1]
         local capacity = tonumber(ARGV[1])
@@ -90,12 +134,33 @@ class RedisLimiter:
         )
 
     async def __aenter__(self):
+        """
+        Async context manager entry point.
+        
+        Acquires a token when entering the context, blocking until one
+        becomes available.
+        
+        Returns:
+            Self instance for use in async context manager
+        """
         while True:
             if await self.acquire():
                 return self
             await asyncio.sleep(self.sleep)
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """
+        Async context manager exit point.
+        
+        Releases the token when exiting the context, but only if an
+        exception occurred. This implements a rollback mechanism for
+        failed operations.
+        
+        Args:
+            exc_type: Exception type if an exception occurred
+            exc_val: Exception value if an exception occurred
+            exc_tb: Exception traceback if an exception occurred
+        """
         # Only release if an exception occurred (rollback)
         if exc_type is not None:
             await self.release()
