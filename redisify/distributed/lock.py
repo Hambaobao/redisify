@@ -114,6 +114,10 @@ class RedisRWLock:
         name: The base Redis key name for this lock
         token: Unique identifier for this lock instance (for write lock)
         sleep: Sleep duration between acquisition attempts
+    
+    Note:
+        Each concurrent task/thread/coroutine must use its own RedisRWLock instance.
+        Do NOT share a single lock instance between concurrent tasks, or local state will be corrupted.
     """
 
     def __init__(self, redis: Redis, name: str, sleep: float = 0.1):
@@ -123,15 +127,15 @@ class RedisRWLock:
         self.readers_key = f"{self.name}:readers"
         self.token = str(uuid.uuid4())
         self.sleep = sleep
-        self._is_writer = False
-        self._is_reader = False
+        self._is_writer = False  # True if this instance holds the write lock
+        self._is_reader = False  # True if this instance holds the read lock
 
     async def acquire_read(self) -> bool:
         """
         Acquire the read lock. Multiple readers are allowed if no writer holds the lock.
+        Returns True if acquired.
         """
         while True:
-            # Lua: if no write lock, increment readers and allow
             script = """
             if redis.call('EXISTS', KEYS[1]) == 0 then
                 return redis.call('INCR', KEYS[2])
@@ -148,18 +152,20 @@ class RedisRWLock:
     async def release_read(self) -> None:
         """
         Release the read lock (decrement readers count).
+        Raises RuntimeError if this instance does not hold the read lock.
         """
         if not self._is_reader:
-            return
+            raise RuntimeError("Cannot release read lock: not held by this instance.\n"
+                               "Note: Do not share lock instances between concurrent tasks.")
         await self.redis.decr(self.readers_key)
         self._is_reader = False
 
     async def acquire_write(self) -> bool:
         """
         Acquire the write lock. Only one writer allowed, and no readers.
+        Returns True if acquired.
         """
         while True:
-            # Lua: if no write lock and no readers, set write lock
             script = """
             if redis.call('EXISTS', KEYS[1]) == 0 and (redis.call('GET', KEYS[2]) == false or redis.call('GET', KEYS[2]) == '0') then
                 return redis.call('SET', KEYS[1], ARGV[1], 'NX') and 1 or 0
@@ -176,10 +182,11 @@ class RedisRWLock:
     async def release_write(self) -> None:
         """
         Release the write lock if held by this instance.
+        Raises RuntimeError if this instance does not hold the write lock.
         """
         if not self._is_writer:
-            return
-        # Only delete if token matches
+            raise RuntimeError("Cannot release write lock: not held by this instance.\n"
+                               "Note: Do not share lock instances between concurrent tasks.")
         script = """
         if redis.call('GET', KEYS[1]) == ARGV[1] then
             return redis.call('DEL', KEYS[1])
@@ -200,8 +207,13 @@ class RedisRWLock:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self.release_write()
 
-    # Optionally, context managers for read lock
     async def read_lock(self):
+        """
+        Async context manager for read lock.
+        Usage:
+            async with await lock.read_lock():
+                ...
+        """
 
         class _ReadCtx:
 
