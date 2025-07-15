@@ -2,7 +2,6 @@ import uuid
 import asyncio
 from redis.asyncio import Redis
 import warnings
-from warnings import DeprecationWarning
 
 
 class RedisLock:
