@@ -260,7 +260,7 @@ async with rwlock('w'):
     print("Write lock held (context manager)")
 
 # Read lock (shared, multiple readers allowed, no writers allowed)
-async with rwlock('r'):
+async with await rwlock('r'):
     print("Read lock held (context manager)")
 ```
 
@@ -268,7 +268,8 @@ async with rwlock('r'):
 - Each concurrent task/thread/coroutine must use its own `RedisRWLock` instance (even if the name is the same).
 - Do **not** share a single lock instance between concurrent tasks, or local state will be corrupted.
 - The lock guarantees distributed correctness via Redis, and local state is only for preventing misuse.
-- `async with lock:` is **deprecated** and will raise a `DeprecationWarning`. Please use `async with lock('r')` or `async with lock('w')` instead.
+- `async with lock:` is **deprecated** and will raise a `DeprecationWarning`. Please use `async with rwlock('w')` for write lock, and `async with await rwlock('r')` for read lock.
+- `async with rwlock('r'):` (不带 await) **不可用**，会报错。
 
 **Typical usage scenarios:**
 - Protecting resources that can be read by many but written by only one at a time (e.g., configuration, caches, etc.)

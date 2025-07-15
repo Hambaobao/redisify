@@ -233,7 +233,7 @@ class RedisRWLock:
         """
         Return an async context manager for the given mode.
         Usage:
-            async with lock('r'):
+            async with await lock('r'):
                 ... # read lock
             async with lock('w'):
                 ... # write lock

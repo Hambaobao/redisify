@@ -95,7 +95,7 @@ async def test_redis_rwlock_read_async_with():
     lock = RedisRWLock(redis, "test:rwlock:rctx")
 
     # recommend new usage
-    async with lock('r'):
+    async with await lock('r'):
         val = await redis.get(lock.readers_key)
         assert int(val) >= 1
 
