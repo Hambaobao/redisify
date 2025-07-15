@@ -3,6 +3,7 @@ from redis.asyncio import Redis
 from redisify import RedisLock
 from redisify import RedisRWLock
 import asyncio
+from warnings import DeprecationWarning
 
 
 @pytest.mark.asyncio
@@ -56,9 +57,19 @@ async def test_redis_rwlock_write_async_with():
     redis = Redis(decode_responses=True)
     lock = RedisRWLock(redis, "test:rwlock:wctx")
 
-    async with lock:
+    # 推荐新用法
+    async with lock('w'):
         val = await redis.get(lock.write_key)
         assert val == lock.token
+
+    val = await redis.get(lock.write_key)
+    assert val is None
+
+    # 兼容旧用法，断言 DeprecationWarning
+    with pytest.warns(DeprecationWarning):
+        async with lock:
+            val = await redis.get(lock.write_key)
+            assert val == lock.token
 
     val = await redis.get(lock.write_key)
     assert val is None
@@ -83,9 +94,27 @@ async def test_redis_rwlock_read_async_with():
     redis = Redis(decode_responses=True)
     lock = RedisRWLock(redis, "test:rwlock:rctx")
 
+    # recommend new usage
+    async with lock('r'):
+        val = await redis.get(lock.readers_key)
+        assert int(val) >= 1
+
+    val = await redis.get(lock.readers_key)
+    assert val is None or int(val) == 0
+
+    # compatible with old usage
     async with await lock.read_lock():
         val = await redis.get(lock.readers_key)
         assert int(val) >= 1
+
+    val = await redis.get(lock.readers_key)
+    assert val is None or int(val) == 0
+
+    # deprecated usage, should warn
+    with pytest.warns(DeprecationWarning):
+        async with lock:
+            val = await redis.get(lock.readers_key)
+            assert int(val) >= 1
 
     val = await redis.get(lock.readers_key)
     assert val is None or int(val) == 0
