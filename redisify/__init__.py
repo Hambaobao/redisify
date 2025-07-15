@@ -45,6 +45,7 @@ from redisify.structures.list import RedisList
 from redisify.structures.dict import RedisDict
 from redisify.structures.queue import RedisQueue
 from redisify.distributed.lock import RedisLock
+from redisify.distributed.lock import RedisRWLock
 from redisify.distributed.semaphore import RedisSemaphore
 from redisify.distributed.limiter import RedisLimiter
 
@@ -53,6 +54,7 @@ __all__ = [
     "RedisDict",
     "RedisQueue",
     "RedisLock",
+    "RedisRWLock",
     "RedisSemaphore",
     "RedisLimiter",
     "RedisSet",
