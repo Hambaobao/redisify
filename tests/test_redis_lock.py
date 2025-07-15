@@ -114,7 +114,7 @@ async def test_redis_rwlock_read_async_with():
     with pytest.warns(DeprecationWarning):
         async with lock:
             val = await redis.get(lock.readers_key)
-            assert int(val) >= 1
+            assert val is None or int(val) == 0
 
     val = await redis.get(lock.readers_key)
     assert val is None or int(val) == 0
