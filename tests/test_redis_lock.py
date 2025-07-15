@@ -140,9 +140,12 @@ async def test_redis_rwlock_read_blocks_write():
 async def test_redis_rwlock_high_concurrency_readers():
     """Test multiple concurrent readers"""
     redis = Redis(decode_responses=True)
-    lock = RedisRWLock(redis, "test:rwlock:concurrent_read")
+
+    def make_lock():
+        return RedisRWLock(redis, "test:rwlock:concurrent_read")
 
     async def reader_task(reader_id):
+        lock = make_lock()
         await lock.acquire_read()
         await asyncio.sleep(0.1)  # Simulate read work
         await lock.release_read()
@@ -156,7 +159,7 @@ async def test_redis_rwlock_high_concurrency_readers():
     assert set(results) == set(range(10))
 
     # Verify no readers left
-    val = await redis.get(lock.readers_key)
+    val = await redis.get("redisify:rwlock:test:rwlock:concurrent_read:readers")
     assert val is None or int(val) == 0
 
 
@@ -164,11 +167,14 @@ async def test_redis_rwlock_high_concurrency_readers():
 async def test_redis_rwlock_high_concurrency_writers():
     """Test multiple concurrent writers (should serialize)"""
     redis = Redis(decode_responses=True)
-    lock = RedisRWLock(redis, "test:rwlock:concurrent_write")
+
+    def make_lock():
+        return RedisRWLock(redis, "test:rwlock:concurrent_write")
 
     results = []
 
     async def writer_task(writer_id):
+        lock = make_lock()
         await lock.acquire_write()
         results.append(writer_id)
         await asyncio.sleep(0.05)  # Simulate write work
@@ -184,7 +190,7 @@ async def test_redis_rwlock_high_concurrency_writers():
     # Note: order might vary due to timing, but all should complete
 
     # Verify no write lock left
-    val = await redis.get(lock.write_key)
+    val = await redis.get("redisify:rwlock:test:rwlock:concurrent_write:write")
     assert val is None
 
 
@@ -192,12 +198,15 @@ async def test_redis_rwlock_high_concurrency_writers():
 async def test_redis_rwlock_mixed_read_write_concurrency():
     """Test mixed read/write concurrency"""
     redis = Redis(decode_responses=True)
-    lock = RedisRWLock(redis, "test:rwlock:mixed")
+
+    def make_lock():
+        return RedisRWLock(redis, "test:rwlock:mixed")
 
     read_results = []
     write_results = []
 
     async def reader_task(reader_id):
+        lock = make_lock()
         await lock.acquire_read()
         read_results.append(reader_id)
         await asyncio.sleep(0.1)
@@ -205,6 +214,7 @@ async def test_redis_rwlock_mixed_read_write_concurrency():
         return f"reader_{reader_id}"
 
     async def writer_task(writer_id):
+        lock = make_lock()
         await lock.acquire_write()
         write_results.append(writer_id)
         await asyncio.sleep(0.05)
@@ -228,9 +238,12 @@ async def test_redis_rwlock_mixed_read_write_concurrency():
 async def test_redis_rwlock_stress_test():
     """Stress test with many rapid operations"""
     redis = Redis(decode_responses=True)
-    lock = RedisRWLock(redis, "test:rwlock:stress")
+
+    def make_lock():
+        return RedisRWLock(redis, "test:rwlock:stress")
 
     async def stress_task(task_id):
+        lock = make_lock()
         for i in range(10):
             if task_id % 2 == 0:  # Even tasks are readers
                 await lock.acquire_read()
@@ -250,9 +263,9 @@ async def test_redis_rwlock_stress_test():
     assert set(results) == set(range(20))
 
     # Verify clean state
-    val = await redis.get(lock.write_key)
+    val = await redis.get("redisify:rwlock:test:rwlock:stress:write")
     assert val is None
-    val = await redis.get(lock.readers_key)
+    val = await redis.get("redisify:rwlock:test:rwlock:stress:readers")
     assert val is None or int(val) == 0
 
 
@@ -260,13 +273,16 @@ async def test_redis_rwlock_stress_test():
 async def test_redis_rwlock_reader_writer_starvation():
     """Test that readers don't starve writers and vice versa"""
     redis = Redis(decode_responses=True)
-    lock = RedisRWLock(redis, "test:rwlock:starvation")
+
+    def make_lock():
+        return RedisRWLock(redis, "test:rwlock:starvation")
 
     reader_count = 0
     writer_count = 0
 
     async def continuous_reader():
         nonlocal reader_count
+        lock = make_lock()
         for _ in range(5):
             await lock.acquire_read()
             reader_count += 1
@@ -276,6 +292,7 @@ async def test_redis_rwlock_reader_writer_starvation():
 
     async def continuous_writer():
         nonlocal writer_count
+        lock = make_lock()
         for _ in range(3):
             await lock.acquire_write()
             writer_count += 1
