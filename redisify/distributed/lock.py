@@ -1,6 +1,7 @@
 import uuid
 import asyncio
 from redis.asyncio import Redis
+import warnings
 
 
 class RedisLock:
@@ -200,7 +201,9 @@ class RedisRWLock:
     async def __aenter__(self):
         """
         By default, acquire write lock in context manager.
+        Deprecated: Use 'async with lock("r")' or 'async with lock("w")' instead.
         """
+        warnings.warn("'async with lock:' is deprecated. Use 'async with lock(\'r\')' or 'async with lock(\'w\')' instead.", DeprecationWarning, stacklevel=2)
         await self.acquire_write()
         return self
 
@@ -225,3 +228,19 @@ class RedisRWLock:
                 await self.release_read()
 
         return _ReadCtx()
+
+    def __call__(self, mode: str = 'w'):
+        """
+        Return an async context manager for the given mode.
+        Usage:
+            async with await lock('r'):
+                ... # read lock
+            async with lock('w'):
+                ... # write lock
+        """
+        if mode not in ('r', 'w'):
+            raise ValueError("mode must be 'r' (read) or 'w' (write)")
+        if mode == 'w':
+            return self
+        else:
+            return self.read_lock()
