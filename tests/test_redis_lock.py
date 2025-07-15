@@ -3,7 +3,7 @@ from redis.asyncio import Redis
 from redisify import RedisLock
 from redisify import RedisRWLock
 import asyncio
-from warnings import DeprecationWarning
+import warnings
 
 
 @pytest.mark.asyncio
