@@ -5,7 +5,7 @@ A lightweight Python library that provides Redis-backed data structures like dic
 queues, locks, and semaphores, designed for distributed systems.
 """
 
-__version__ = "0.1.5"
+__version__ = "0.2.0"
 
 from redisify.structures.set import RedisSet
 from redisify.structures.list import RedisList
