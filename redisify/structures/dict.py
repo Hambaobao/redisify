@@ -157,6 +157,17 @@ class RedisDict:
         """
         return await self.redis.hlen(self.id)
 
+    async def size(self) -> int:
+        """
+        Get the number of key-value pairs in the dictionary.
+        
+        This is an alias for __len__ for explicit method calls.
+        
+        Returns:
+            The number of items in the dictionary
+        """
+        return await self.__len__()
+
     async def set(self, key, value):
         """
         Set a key-value pair in the dictionary.
