@@ -1,12 +1,18 @@
-from redis.asyncio import Redis
-from redisify import RedisQueue
+from redisify import RedisQueue, connect_to_redis, reset
 import pytest
+
+
+@pytest.fixture(autouse=True)
+async def setup_redis():
+    """Setup Redis connection for each test."""
+    connect_to_redis(host="localhost", port=6379, db=0, decode_responses=True)
+    yield
+    reset()
 
 
 @pytest.mark.asyncio
 async def test_redis_queue():
-    redis = Redis(decode_responses=True)
-    queue = RedisQueue(redis, "test:queue")
+    queue = RedisQueue("test:queue")
     await queue.clear()
 
     await queue.put("job1")

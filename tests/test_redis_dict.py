@@ -1,12 +1,18 @@
-from redis.asyncio import Redis
-from redisify import RedisDict
+from redisify import RedisDict, connect_to_redis, reset
 import pytest
+
+
+@pytest.fixture(autouse=True)
+async def setup_redis():
+    """Setup Redis connection for each test."""
+    connect_to_redis(host="localhost", port=6379, db=0, decode_responses=True)
+    yield
+    reset()
 
 
 @pytest.mark.asyncio
 async def test_redis_dict():
-    redis = Redis(decode_responses=True)
-    rdict = RedisDict(redis, "test:dict")
+    rdict = RedisDict("test:dict")
     await rdict.clear()
 
     await rdict.__setitem__("a", "1")

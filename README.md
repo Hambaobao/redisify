@@ -16,7 +16,7 @@
 
 ### 🔐 Distributed Synchronization
 - **RedisLock**: Distributed locking mechanism with automatic cleanup
-- **RedisRWLock**: Distributed read-write lock for concurrent readers and exclusive writers
+
 - **RedisSemaphore**: Semaphore for controlling concurrent access
 - **RedisLimiter**: Rate limiting with token bucket algorithm
 
@@ -48,7 +48,6 @@ pip install -e .[test]
 import asyncio
 from redis.asyncio import Redis
 from redisify import RedisDict, RedisList, RedisQueue, RedisSet, RedisLock, RedisSemaphore, RedisLimiter
-from redisify import RedisRWLock
 
 async def main():
     redis = Redis()
@@ -80,14 +79,7 @@ async def main():
     items = await rset.to_set()
     print(items)  # {'item1', 'item2'}
 
-    # Read-Write Lock (RWLock) usage
-    rwlock = RedisRWLock(redis, "example:rwlock")
-    # Write lock (exclusive)
-    async with rwlock:
-        print("Write lock acquired")
-    # Read lock (shared)
-    async with await rwlock.read_lock():
-        print("Read lock acquired")
+
 
 asyncio.run(main())
 ```
@@ -246,33 +238,7 @@ async with RedisLock(redis, "resource_lock"):
     # Lock is automatically released
 ```
 
-### RedisRWLock
 
-A distributed read-write lock for concurrent readers and exclusive writers.
-
-```python
-from redisify import RedisRWLock
-
-rwlock = RedisRWLock(redis, "resource_rwlock")
-
-# Write lock (exclusive, only one writer, no readers allowed)
-async with rwlock('w'):
-    print("Write lock held (context manager)")
-
-# Read lock (shared, multiple readers allowed, no writers allowed)
-async with await rwlock('r'):
-    print("Read lock held (context manager)")
-```
-
-**Note:**
-- Each concurrent task/thread/coroutine must use its own `RedisRWLock` instance (even if the name is the same).
-- Do **not** share a single lock instance between concurrent tasks, or local state will be corrupted.
-- The lock guarantees distributed correctness via Redis, and local state is only for preventing misuse.
-- `async with lock:` is **deprecated** and will raise a `DeprecationWarning`. Please use `async with rwlock('w')` for write lock, and `async with await rwlock('r')` for read lock.
-- `async with rwlock('r'):` (without await) **is not supported** and will raise an error.
-
-**Typical usage scenarios:**
-- Protecting resources that can be read by many but written by only one at a time (e.g., configuration, caches, etc.)
 
 ### RedisSemaphore
 
@@ -371,7 +337,7 @@ For detailed API documentation, see the docstrings in the source code:
 - [RedisQueue](redisify/structures/queue.py) - Distributed queue
 - [RedisSet](redisify/structures/set.py) - Distributed set
 - [RedisLock](redisify/distributed/lock.py) - Distributed lock
-- [RedisRWLock](redisify/distributed/lock.py) - Distributed read-write lock
+
 - [RedisSemaphore](redisify/distributed/semaphore.py) - Distributed semaphore
 - [RedisLimiter](redisify/distributed/limiter.py) - Rate limiter
 - [Serializer](redisify/serializer.py) - Object serialization
