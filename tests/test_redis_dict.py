@@ -16,14 +16,14 @@ async def test_redis_dict():
     rdict = RedisDict("test:dict")
     await rdict.clear()
 
-    await rdict.__setitem__("a", "1")
-    assert await rdict.__getitem__("a") == "1"
+    await rdict.set("a", "1")
+    assert await rdict.get("a") == "1"
 
-    await rdict.__setitem__("b", "2")
+    await rdict.set("b", "2")
     assert sorted(await rdict.keys()) == ["a", "b"]
     assert await rdict.get("c", "default") == "default"
 
-    await rdict.__delitem__("a")
+    await rdict.delete("a")
     assert await rdict.get("a") is None
 
     await rdict.update({"x": "100", "y": "200"})
@@ -35,4 +35,4 @@ async def test_redis_dict():
     assert "y" in items
 
     await rdict.clear()
-    assert await rdict.__len__() == 0
+    assert await rdict.size() == 0

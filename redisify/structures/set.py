@@ -123,6 +123,31 @@ class RedisSet:
         """
         return await self.redis.scard(self.id)
 
+    async def contains(self, item):
+        """
+        Check if an item is in the set.
+        
+        This is an alias for __contains__ for explicit method calls.
+        
+        Args:
+            item: The item to check (will be serialized for comparison)
+            
+        Returns:
+            True if the item is in the set, False otherwise
+        """
+        return await self.__contains__(item)
+
+    async def size(self) -> int:
+        """
+        Get the number of items in the set.
+        
+        This is an alias for __len__ for explicit method calls.
+        
+        Returns:
+            The number of items in the set
+        """
+        return await self.__len__()
+
     async def to_set(self):
         """
         Convert the Redis set to a regular Python set.

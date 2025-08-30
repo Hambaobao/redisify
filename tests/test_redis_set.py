@@ -19,9 +19,9 @@ async def test_redis_set_basic():
     await rset.add("a")
     await rset.add("b")
     await rset.add("c")
-    assert await rset.__len__() == 3
-    assert await rset.__contains__("a")
-    assert not await rset.__contains__("x")
+    assert await rset.size() == 3
+    assert await rset.contains("a")
+    assert not await rset.contains("x")
 
     s = await rset.to_set()
     assert s == {"a", "b", "c"}
@@ -35,10 +35,10 @@ async def test_redis_set_basic():
 
     popped = await rset.pop()
     assert popped == "c"
-    assert await rset.__len__() == 0
+    assert await rset.size() == 0
 
     await rset.clear()
-    assert await rset.__len__() == 0
+    assert await rset.size() == 0
 
 
 @pytest.mark.asyncio

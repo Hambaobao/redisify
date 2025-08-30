@@ -131,6 +131,79 @@ class RedisList:
         """
         return await self.redis.llen(self.id)
 
+    async def get(self, index: int):
+        """
+        Get an item from the list by index.
+        
+        This is an alias for __getitem__ for explicit method calls.
+        
+        Args:
+            index: Integer index
+            
+        Returns:
+            The item at the specified index
+            
+        Raises:
+            IndexError: If the index is out of range
+        """
+        return await self.__getitem__(index)
+
+    async def set(self, index: int, value):
+        """
+        Set an item in the list by index.
+        
+        This is an alias for __setitem__ for explicit method calls.
+        
+        Args:
+            index: Integer index
+            value: The value to assign (will be serialized before storage)
+            
+        Raises:
+            IndexError: If the index is out of range
+        """
+        return await self.__setitem__(index, value)
+
+    async def delete(self, index: int):
+        """
+        Delete an item from the list by index.
+        
+        This method removes the item at the specified index and shifts
+        the remaining items to fill the gap.
+        
+        Args:
+            index: Integer index of the item to delete
+            
+        Raises:
+            IndexError: If the index is out of range
+        """
+        # Get the current length
+        length = await self.redis.llen(self.id)
+        if index < 0:
+            index = length + index
+        if index < 0 or index >= length:
+            raise IndexError("RedisList index out of range")
+        
+        # Remove the item by index
+        # Redis doesn't have a direct LREM by index, so we need to reconstruct
+        all_items = await self.redis.lrange(self.id, 0, -1)
+        if index < len(all_items):
+            del all_items[index]
+            # Clear and repopulate
+            await self.redis.delete(self.id)
+            if all_items:
+                await self.redis.rpush(self.id, *all_items)
+
+    async def size(self) -> int:
+        """
+        Get the number of items in the list.
+        
+        This is an alias for __len__ for explicit method calls.
+        
+        Returns:
+            The number of items in the list
+        """
+        return await self.__len__()
+
     async def clear(self):
         """
         Remove all items from the list.
