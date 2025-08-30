@@ -20,12 +20,14 @@ class RedisQueue:
     to block when the queue is full.
     
     Attributes:
-        redis: The Redis client instance
+        namespace: The namespace prefix for Redis keys
         id: The Redis key id for this queue
         serializer: Serializer instance for object serialization
         maxsize: Maximum number of items in the queue (None for unlimited)
         sleep: Sleep duration between blocking operations
     """
+
+    namespace: str = "redisify:queue"
 
     def __init__(
         self,
@@ -45,7 +47,7 @@ class RedisQueue:
         """
         self.redis = get_redis()
         _id = id or str(uuid.uuid4())
-        self.id = f"redisify:queue:{_id}"
+        self.id = f"{self.namespace}:{_id}"
         self.serializer = serializer or Serializer()
         self.size = size
         self.sleep = sleep

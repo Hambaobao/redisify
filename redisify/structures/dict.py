@@ -19,9 +19,12 @@ class RedisDict:
     and values.
     
     Attributes:
+        namespace: The namespace prefix for Redis keys
         id: The Redis key id for this dictionary
         serializer: Serializer instance for object serialization
     """
+
+    namespace: str = "redisify:dict"
 
     def __init__(self, id: str = None, serializer: Serializer = None):
         """
@@ -33,7 +36,7 @@ class RedisDict:
         """
         self.redis = get_redis()
         _id = id or str(uuid.uuid4())
-        self.id = f"redisify:dict:{_id}"
+        self.id = f"{self.namespace}:{_id}"
         self.serializer = serializer or Serializer()
 
     async def __getitem__(self, key):

@@ -18,13 +18,15 @@ class RedisLimiter:
     when tokens are available.
     
     Attributes:
-        redis: The Redis client instance
+        namespace: The namespace prefix for Redis keys
         id: The Redis key id for this limiter
         rate_limit: Maximum number of tokens (bucket capacity)
         time_period: Time period in seconds to fully refill the bucket
         refill_rate: Rate at which tokens are refilled (tokens per second)
         sleep: Sleep duration between acquisition attempts
     """
+
+    namespace: str = "redisify:limiter"
 
     def __init__(
         self,
@@ -44,7 +46,7 @@ class RedisLimiter:
         """
         self.redis = get_redis()
         _id = id or str(uuid.uuid4())
-        self.id = f"redisify:limiter:{_id}"
+        self.id = f"{self.namespace}:{_id}"
         self.rate_limit = rate_limit
         self.time_period = time_period
         self.refill_rate = rate_limit / time_period  # tokens per second

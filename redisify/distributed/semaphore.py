@@ -44,12 +44,15 @@ class RedisSemaphore:
     acquisition when the count is below the specified limit.
     
     Attributes:
+        namespace: The namespace prefix for Redis keys
         id: The Redis key id for this semaphore
         limit: Maximum number of permits that can be acquired
         sleep: Sleep duration between acquisition attempts
         _script_can_acquire: Registered Lua script for checking availability
         _script_acquire: Registered Lua script for acquiring permits
     """
+
+    namespace: str = "redisify:semaphore"
 
     def __init__(self, id: str, limit: int, sleep: float = 0.1):
         """
@@ -62,7 +65,7 @@ class RedisSemaphore:
         """
         self.redis = get_redis()
         _id = id or str(uuid.uuid4())
-        self.id = f"redisify:semaphore:{_id}"
+        self.id = f"{self.namespace}:{_id}"
         self.limit = limit
         self.sleep = sleep
 
