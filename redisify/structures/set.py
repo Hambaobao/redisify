@@ -17,10 +17,12 @@ class RedisSet:
     serializer, allowing storage of complex Python objects.
     
     Attributes:
-        redis: The Redis client instance
+        namespace: The namespace prefix for Redis keys
         id: The Redis key id for this set
         serializer: Serializer instance for object serialization
     """
+
+    namespace: str = "redisify:set"
 
     def __init__(self, id: str = None, serializer: Serializer = None):
         """
@@ -32,7 +34,7 @@ class RedisSet:
         """
         self.redis = get_redis()
         _id = id or str(uuid.uuid4())
-        self.id = f"redisify:set:{_id}"
+        self.id = f"{self.namespace}:{_id}"
         self.serializer = serializer or Serializer()
 
     async def add(self, item):
@@ -227,13 +229,13 @@ class RedisSet:
                 sets.append(other.id)
             else:
                 # create a temp set for non-RedisSet
-                temp_name = f"redisify:temp:{uuid.uuid4()}"
+                temp_name = f"{self.namespace}:temp:{uuid.uuid4()}"
                 await self.redis.sadd(temp_name, *[self.serializer.serialize(i) for i in other])
                 sets.append(temp_name)
         diff = await self.redis.sdiff(*sets)
         # cleanup temp sets
         for name in sets[1:]:
-            if name.startswith("redisify:temp:"):
+            if name.startswith(f"{self.namespace}:temp:"):
                 await self.redis.delete(name)
         return set(self.serializer.deserialize(m) for m in diff)
 
@@ -255,12 +257,12 @@ class RedisSet:
             if isinstance(other, RedisSet):
                 sets.append(other.id)
             else:
-                temp_name = f"redisify:temp:{uuid.uuid4()}"
+                temp_name = f"{self.namespace}:temp:{uuid.uuid4()}"
                 await self.redis.sadd(temp_name, *[self.serializer.serialize(i) for i in other])
                 sets.append(temp_name)
         union = await self.redis.sunion(*sets)
         for name in sets[1:]:
-            if name.startswith("redisify:temp:"):
+            if name.startswith(f"{self.namespace}:temp:"):
                 await self.redis.delete(name)
         return set(self.serializer.deserialize(m) for m in union)
 
@@ -282,12 +284,12 @@ class RedisSet:
             if isinstance(other, RedisSet):
                 sets.append(other.id)
             else:
-                temp_name = f"redisify:temp:{uuid.uuid4()}"
+                temp_name = f"{self.namespace}:temp:{uuid.uuid4()}"
                 await self.redis.sadd(temp_name, *[self.serializer.serialize(i) for i in other])
                 sets.append(temp_name)
         inter = await self.redis.sinter(*sets)
         for name in sets[1:]:
-            if name.startswith("redisify:temp:"):
+            if name.startswith(f"{self.namespace}:temp:"):
                 await self.redis.delete(name)
         return set(self.serializer.deserialize(m) for m in inter)
 

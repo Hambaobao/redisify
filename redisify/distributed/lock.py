@@ -16,10 +16,13 @@ class RedisLock:
     the lock can release it, preventing accidental releases by other processes.
     
     Attributes:
+        namespace: The namespace prefix for Redis keys
         id: The Redis key id for this lock
         token: Unique identifier for this lock instance
         sleep: Sleep duration between acquisition attempts
     """
+
+    namespace: str = "redisify:lock"
 
     def __init__(self, id: str = None, sleep: float = 0.1):
         """
@@ -31,7 +34,7 @@ class RedisLock:
         """
         self.redis = get_redis()
         _id = id or str(uuid.uuid4())
-        self.id = f"redisify:lock:{_id}"
+        self.id = f"{self.namespace}:{_id}"
         self.token = str(uuid.uuid4())
         self.sleep = sleep
 

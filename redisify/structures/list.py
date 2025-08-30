@@ -1,5 +1,7 @@
 import uuid
 
+from typing import List, Optional
+
 from redisify.serializer import Serializer
 from redisify.config import get_redis
 
@@ -12,27 +14,28 @@ class RedisList:
     processes or servers. The list supports all standard list operations
     including append, pop, indexing, slicing, and iteration.
     
-    All values are automatically serialized and deserialized using the provided
+    All items are automatically serialized and deserialized using the provided
     serializer, allowing storage of complex Python objects.
     
     Attributes:
-        redis: The Redis client instance
-        name: The Redis key name for this list
+        namespace: The namespace prefix for Redis keys
+        id: The Redis key id for this list
         serializer: Serializer instance for object serialization
     """
+
+    namespace: str = "redisify:list"
 
     def __init__(self, id: str = None, serializer: Serializer = None):
         """
         Initialize a Redis-based distributed list.
         
         Args:
-            name: Unique name for this list (auto-generated if None)
-            redis: Redis client instance (uses global config if None)
+            id: Unique id for this list (auto-generated if None)
             serializer: Serializer instance for object serialization
         """
         self.redis = get_redis()
         _id = id or str(uuid.uuid4())
-        self.id = f"redisify:list:{_id}"
+        self.id = f"{self.namespace}:{_id}"
         self.serializer = serializer or Serializer()
 
     async def append(self, item):
@@ -182,7 +185,7 @@ class RedisList:
             index = length + index
         if index < 0 or index >= length:
             raise IndexError("RedisList index out of range")
-        
+
         # Remove the item by index
         # Redis doesn't have a direct LREM by index, so we need to reconstruct
         all_items = await self.redis.lrange(self.id, 0, -1)
