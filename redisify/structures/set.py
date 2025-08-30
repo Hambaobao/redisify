@@ -199,7 +199,7 @@ class RedisSet:
         sets = [self.id]
         for other in others:
             if isinstance(other, RedisSet):
-                sets.append(other.name)
+                sets.append(other.id)
             else:
                 # create a temp set for non-RedisSet
                 temp_name = f"redisify:temp:{uuid.uuid4()}"
@@ -228,7 +228,7 @@ class RedisSet:
         sets = [self.id]
         for other in others:
             if isinstance(other, RedisSet):
-                sets.append(other.name)
+                sets.append(other.id)
             else:
                 temp_name = f"redisify:temp:{uuid.uuid4()}"
                 await self.redis.sadd(temp_name, *[self.serializer.serialize(i) for i in other])
@@ -255,7 +255,7 @@ class RedisSet:
         sets = [self.id]
         for other in others:
             if isinstance(other, RedisSet):
-                sets.append(other.name)
+                sets.append(other.id)
             else:
                 temp_name = f"redisify:temp:{uuid.uuid4()}"
                 await self.redis.sadd(temp_name, *[self.serializer.serialize(i) for i in other])

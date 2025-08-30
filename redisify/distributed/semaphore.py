@@ -58,7 +58,6 @@ class RedisSemaphore:
         Args:
             id: Unique id for this semaphore
             limit: Maximum number of permits that can be acquired
-            id: Unique id for this semaphore
             sleep: Sleep duration between acquisition attempts in seconds
         """
         self.redis = get_redis()

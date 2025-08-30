@@ -13,9 +13,9 @@ async def setup_redis():
 
 @pytest.mark.asyncio
 async def test_redis_semaphore_manual_release():
-    sem1 = RedisSemaphore(2, "test:semaphore")
-    sem2 = RedisSemaphore(2, "test:semaphore")
-    sem3 = RedisSemaphore(2, "test:semaphore")
+    sem1 = RedisSemaphore("test:semaphore", 2)
+    sem2 = RedisSemaphore("test:semaphore", 2)
+    sem3 = RedisSemaphore("test:semaphore", 2)
 
     await sem1.acquire()
     await sem2.acquire()
@@ -30,7 +30,7 @@ async def test_redis_semaphore_manual_release():
 
 @pytest.mark.asyncio
 async def test_redis_semaphore_async_with():
-    sem = RedisSemaphore(1, "test:semaphore:with")
+    sem = RedisSemaphore("test:semaphore:with", 1)
 
     async with sem:
         # No direct way to check token in Redis, just ensure context works
@@ -42,9 +42,9 @@ async def test_redis_semaphore_async_with():
 
 @pytest.mark.asyncio
 async def test_redis_semaphore_value():
-    sem1 = RedisSemaphore(3, "test:semaphore:value")
-    sem2 = RedisSemaphore(3, "test:semaphore:value")
-    sem3 = RedisSemaphore(3, "test:semaphore:value")
+    sem1 = RedisSemaphore("test:semaphore:value", 3)
+    sem2 = RedisSemaphore("test:semaphore:value", 3)
+    sem3 = RedisSemaphore("test:semaphore:value", 3)
 
     # Initially, no semaphores are acquired
     assert await sem1.value() == 0
@@ -82,7 +82,7 @@ async def test_redis_semaphore_value():
 
 @pytest.mark.asyncio
 async def test_redis_semaphore_value_with_context_manager():
-    sem = RedisSemaphore(2, "test:semaphore:value:context")
+    sem = RedisSemaphore("test:semaphore:value:context", 2)
 
     # Initially, no semaphores are acquired
     assert await sem.value() == 0

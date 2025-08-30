@@ -46,40 +46,38 @@ pip install -e .[test]
 
 ```python
 import asyncio
-from redis.asyncio import Redis
-from redisify import RedisDict, RedisList, RedisQueue, RedisSet, RedisLock, RedisSemaphore, RedisLimiter
+from redisify import RedisDict, RedisList, RedisQueue, RedisSet, RedisLock, RedisSemaphore, RedisLimiter, connect_to_redis
 
 async def main():
-    redis = Redis()
+    # Connect to Redis
+    connect_to_redis(host="localhost", port=6379, db=0)
     
     # Dictionary operations
-    rdict = RedisDict(redis, "example:dict")
+    rdict = RedisDict("example:dict")
     await rdict["user:1"] = {"name": "Alice", "age": 30}
     user = await rdict["user:1"]
     print(user)  # {'name': 'Alice', 'age': 30}
     
     # List operations
-    rlist = RedisList(redis, "example:list")
+    rlist = RedisList("example:list")
     await rlist.append("item1")
     await rlist.append("item2")
     first_item = await rlist[0]
     print(first_item)  # item1
     
     # Queue operations
-    rqueue = RedisQueue(redis, "example:queue")
+    rqueue = RedisQueue("example:queue")
     await rqueue.put("task1")
     await rqueue.put("task2")
     task = await rqueue.get()
     print(task)  # task1
     
     # Set operations
-    rset = RedisSet(redis, "example:set")
+    rset = RedisSet("example:set")
     await rset.add("item1")
     await rset.add("item2")
     items = await rset.to_set()
     print(items)  # {'item1', 'item2'}
-
-
 
 asyncio.run(main())
 ```
@@ -93,7 +91,7 @@ A distributed dictionary that supports any serializable Python objects as keys a
 ```python
 from redisify import RedisDict
 
-rdict = RedisDict(redis, "users")
+rdict = RedisDict("users")
 
 # Basic operations
 await rdict["user1"] = {"name": "Alice", "age": 30}
@@ -125,7 +123,7 @@ A distributed list with full indexing and slicing support.
 ```python
 from redisify import RedisList
 
-rlist = RedisList(redis, "tasks")
+rlist = RedisList("tasks")
 
 # Add items
 await rlist.append("task1")
@@ -248,7 +246,7 @@ A distributed semaphore for controlling concurrent access.
 from redisify import RedisSemaphore
 
 # Limit to 3 concurrent operations
-semaphore = RedisSemaphore(redis, limit=3, name="api_limit")
+semaphore = RedisSemaphore("api_limit", 3)
 
 async def api_call():
     async with semaphore:
@@ -276,7 +274,7 @@ A distributed rate limiter using token bucket algorithm.
 from redisify import RedisLimiter
 
 # Rate limit: 10 requests per minute
-limiter = RedisLimiter(redis, "api_rate", rate_limit=10, time_period=60)
+limiter = RedisLimiter("api_rate", 10, 60)
 
 async def make_request():
     if await limiter.acquire():
@@ -286,7 +284,7 @@ async def make_request():
         print("Rate limit exceeded")
 
 # Context manager with automatic retry
-async with RedisLimiter(redis, "api_rate", rate_limit=10, time_period=60):
+async with RedisLimiter("api_rate", 10, 60):
     print("Request allowed")
     # Make API call
 ```
@@ -304,7 +302,7 @@ class User(BaseModel):
     age: int
 
 user = User(name="Alice", age=30)
-rdict = RedisDict(redis, "users")
+rdict = RedisDict("users")
 
 # Pydantic models are automatically serialized
 await rdict["user1"] = user
