@@ -1,3 +1,12 @@
+"""
+Redisify - Redis-backed data structures and distributed synchronization primitives.
+
+A lightweight Python library that provides Redis-backed data structures like dicts, 
+queues, locks, and semaphores, designed for distributed systems.
+"""
+
+__version__ = "0.1.5"
+
 from redisify.structures.set import RedisSet
 from redisify.structures.list import RedisList
 from redisify.structures.dict import RedisDict
@@ -18,4 +27,5 @@ __all__ = [
     "RedisSet",
     "connect_to_redis",
     "reset",
+    "__version__",
 ]

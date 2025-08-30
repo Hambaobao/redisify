@@ -418,24 +418,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - redis Python client (redis-py)
 - dill (for object serialization)
 
-## 📝 Changelog
-
-### v0.1.3
-- Added comprehensive docstrings for all classes and methods
-- Improved error handling and type safety
-- Enhanced performance and memory efficiency
-- Added better examples and documentation
-
-### v0.1.0
-- Initial release with RedisDict, RedisList, RedisQueue
-- Added RedisSet with full set operations
-- Implemented RedisLock for distributed locking
-- Added RedisSemaphore for concurrency control
-- Introduced RedisLimiter with token bucket algorithm
-- Smart serialization supporting Pydantic models
-- Comprehensive async/await support
-- Full test coverage
-
 ## 🙏 Acknowledgments
 
 - [redis-py](https://github.com/redis/redis-py) - Redis Python client
