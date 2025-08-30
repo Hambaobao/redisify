@@ -1,5 +1,6 @@
 import uuid
 import asyncio
+import time
 
 from redisify.config import get_redis
 
@@ -24,7 +25,7 @@ class RedisLock:
 
     namespace: str = "redisify:lock"
 
-    def __init__(self, id: str = None, sleep: float = 0.1):
+    def __init__(self, id: str = None, sleep: float = 0.1) -> None:
         """
         Initialize a Redis-based distributed lock.
         
@@ -38,27 +39,48 @@ class RedisLock:
         self.token = str(uuid.uuid4())
         self.sleep = sleep
 
-    async def acquire(self) -> bool:
+    async def acquire(self, timeout: float = None) -> bool:
         """
-        Acquire the lock, blocking until it becomes available.
+        Acquire the lock, blocking until it becomes available or timeout is reached.
         
-        This method will continuously attempt to acquire the lock until successful.
-        The lock is acquired using Redis SET with NX (only set if not exists)
-        to ensure atomicity.
+        This method will continuously attempt to acquire the lock until successful
+        or until the specified timeout is reached. The lock is acquired using 
+        Redis SET with NX (only set if not exists) to ensure atomicity.
+        
+        Args:
+            timeout: Maximum time to wait for the lock in seconds. 
+                    If None, wait indefinitely.
         
         Returns:
-            True when the lock is successfully acquired
+            True when the lock is successfully acquired, False if timeout is reached
             
         Note:
-            This method blocks indefinitely until the lock is acquired.
+            If timeout is None, this method blocks indefinitely until the lock is acquired.
+            If timeout is specified, it will return False if the lock cannot be acquired
+            within the specified time.
         """
-        while True:
-            ok = await self.redis.set(self.id, self.token, nx=True)
-            if ok:
-                return True
-            await asyncio.sleep(self.sleep)
+        if timeout is None:
+            # Wait indefinitely
+            while True:
+                ok = await self.redis.set(self.id, self.token, nx=True)
+                if ok:
+                    return True
+                await asyncio.sleep(self.sleep)
+        else:
+            # Wait with timeout
+            start_time = time.time()
+            while True:
+                ok = await self.redis.set(self.id, self.token, nx=True)
+                if ok:
+                    return True
 
-    async def release(self) -> None:
+                # Check if timeout has been reached
+                if time.time() - start_time >= timeout:
+                    return False
+
+                await asyncio.sleep(self.sleep)
+
+    async def release(self):
         """
         Release the lock if it was acquired by this instance.
         

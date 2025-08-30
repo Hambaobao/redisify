@@ -54,7 +54,7 @@ class RedisSemaphore:
 
     namespace: str = "redisify:semaphore"
 
-    def __init__(self, id: str, limit: int, sleep: float = 0.1):
+    def __init__(self, id: str = None, limit: int = 1, sleep: float = 0.1) -> None:
         """
         Initialize a Redis-based distributed semaphore.
         
@@ -85,26 +85,49 @@ class RedisSemaphore:
         ok = await self._script_can_acquire(keys=[self.id], args=[self.limit])
         return ok == 1
 
-    async def acquire(self):
+    async def acquire(self, timeout: float = None) -> bool:
         """
-        Acquire a permit, blocking until one becomes available.
+        Acquire a permit, blocking until one becomes available or timeout is reached.
         
         This method will continuously attempt to acquire a permit until
-        successful. The acquisition is performed atomically using a Lua script
-        to ensure consistency across concurrent operations.
+        successful or until the specified timeout is reached. The acquisition 
+        is performed atomically using a Lua script to ensure consistency 
+        across concurrent operations.
+        
+        Args:
+            timeout: Maximum time to wait for a permit in seconds.
+                    If None, wait indefinitely.
         
         Returns:
-            True when a permit is successfully acquired
+            True when a permit is successfully acquired, False if timeout is reached
             
         Note:
-            This method blocks indefinitely until a permit is acquired.
+            If timeout is None, this method blocks indefinitely until a permit is acquired.
+            If timeout is specified, it will return False if a permit cannot be acquired
+            within the specified time.
         """
-        while True:
-            now = time.time()
-            ok = await self._script_acquire(keys=[self.id], args=[now, self.limit])
-            if ok == 1:
-                return True
-            await asyncio.sleep(self.sleep)
+        if timeout is None:
+            # Wait indefinitely
+            while True:
+                now = time.time()
+                ok = await self._script_acquire(keys=[self.id], args=[now, self.limit])
+                if ok == 1:
+                    return True
+                await asyncio.sleep(self.sleep)
+        else:
+            # Wait with timeout
+            start_time = time.time()
+            while True:
+                now = time.time()
+                ok = await self._script_acquire(keys=[self.id], args=[now, self.limit])
+                if ok == 1:
+                    return True
+
+                # Check if timeout has been reached
+                if time.time() - start_time >= timeout:
+                    return False
+
+                await asyncio.sleep(self.sleep)
 
     async def release(self):
         """

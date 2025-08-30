@@ -128,3 +128,79 @@ async def test_redis_lock_uuid_generation():
     assert lock1.token != lock2.token
     assert lock1.id.startswith("redisify:lock:")
     assert lock2.id.startswith("redisify:lock:")
+
+
+@pytest.mark.asyncio
+async def test_redis_lock_timeout():
+    """Test lock acquisition with timeout."""
+    lock1 = RedisLock("test:lock:timeout", sleep=0.01)
+    lock2 = RedisLock("test:lock:timeout", sleep=0.01)
+
+    # First lock should acquire immediately
+    assert await lock1.acquire() is True
+
+    # Second lock should fail to acquire within timeout
+    start_time = asyncio.get_event_loop().time()
+    result = await lock2.acquire(timeout=0.1)
+    end_time = asyncio.get_event_loop().time()
+
+    assert result is False
+    assert end_time - start_time >= 0.1  # Should have waited at least timeout duration
+
+    # Clean up
+    await lock1.release()
+
+
+@pytest.mark.asyncio
+async def test_redis_lock_context_manager_timeout():
+    """Test lock as async context manager with timeout."""
+    lock1 = RedisLock("test:lock:ctx:timeout", sleep=0.01)
+    lock2 = RedisLock("test:lock:ctx:timeout", sleep=0.01)
+
+    # First lock should acquire immediately
+    async with lock1:
+        assert lock1.id == "redisify:lock:test:lock:ctx:timeout"
+
+        # Second lock should block indefinitely in context manager (no timeout)
+        task = asyncio.create_task(lock2.__aenter__())
+
+        # Wait a bit to ensure second lock is blocked
+        await asyncio.sleep(0.05)
+        assert not task.done()
+
+        # Release first lock
+        await lock1.release()
+
+        # Second lock should now acquire
+        await asyncio.wait_for(task, timeout=1.0)
+        assert task.done()
+
+        # Clean up
+        await lock2.__aexit__(None, None, None)
+
+
+@pytest.mark.asyncio
+async def test_redis_lock_no_timeout():
+    """Test lock acquisition without timeout (should wait indefinitely)."""
+    lock1 = RedisLock("test:lock:no:timeout", sleep=0.01)
+    lock2 = RedisLock("test:lock:no:timeout", sleep=0.01)
+
+    # First lock should acquire immediately
+    assert await lock1.acquire() is True
+
+    # Second lock should acquire after first is released (no timeout)
+    task = asyncio.create_task(lock2.acquire())  # No timeout specified
+
+    # Wait a bit to ensure second lock is blocked
+    await asyncio.sleep(0.05)
+    assert not task.done()
+
+    # Release first lock
+    await lock1.release()
+
+    # Second lock should now acquire
+    await asyncio.wait_for(task, timeout=1.0)
+    assert task.done()
+
+    # Clean up
+    await lock2.release()
