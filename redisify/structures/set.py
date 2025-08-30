@@ -1,6 +1,6 @@
 import uuid
 
-from redis.asyncio import Redis
+from redisify.config import get_redis
 from redisify.serializer import Serializer
 
 
@@ -18,22 +18,21 @@ class RedisSet:
     
     Attributes:
         redis: The Redis client instance
-        name: The Redis key name for this set
+        id: The Redis key id for this set
         serializer: Serializer instance for object serialization
     """
 
-    def __init__(self, redis: Redis, name: str = None, serializer: Serializer = None):
+    def __init__(self, id: str = None, serializer: Serializer = None):
         """
         Initialize a Redis-based distributed set.
         
         Args:
-            redis: Redis client instance
-            name: Unique name for this set (auto-generated if None)
+            id: Unique id for this set (auto-generated if None)
             serializer: Serializer instance for object serialization
         """
-        self.redis = redis
-        _name = name or str(uuid.uuid4())
-        self.name = f"redisify:set:{_name}"
+        self.redis = get_redis()
+        _id = id or str(uuid.uuid4())
+        self.id = f"redisify:set:{_id}"
         self.serializer = serializer or Serializer()
 
     async def add(self, item):
@@ -43,7 +42,7 @@ class RedisSet:
         Args:
             item: The item to add (will be serialized before storage)
         """
-        await self.redis.sadd(self.name, self.serializer.serialize(item))
+        await self.redis.sadd(self.id, self.serializer.serialize(item))
 
     async def remove(self, item):
         """
@@ -55,7 +54,7 @@ class RedisSet:
         Raises:
             KeyError: If the item is not in the set
         """
-        removed = await self.redis.srem(self.name, self.serializer.serialize(item))
+        removed = await self.redis.srem(self.id, self.serializer.serialize(item))
         if not removed:
             raise KeyError(item)
 
@@ -69,7 +68,7 @@ class RedisSet:
         Args:
             item: The item to remove (will be serialized for comparison)
         """
-        await self.redis.srem(self.name, self.serializer.serialize(item))
+        await self.redis.srem(self.id, self.serializer.serialize(item))
 
     async def pop(self):
         """
@@ -81,7 +80,7 @@ class RedisSet:
         Raises:
             KeyError: If the set is empty
         """
-        val = await self.redis.spop(self.name)
+        val = await self.redis.spop(self.id)
         if val is None:
             raise KeyError('pop from an empty set')
         return self.serializer.deserialize(val)
@@ -92,7 +91,7 @@ class RedisSet:
         
         This method deletes the entire set from Redis.
         """
-        await self.redis.delete(self.name)
+        await self.redis.delete(self.id)
 
     async def size(self):
         """
@@ -101,7 +100,7 @@ class RedisSet:
         Returns:
             The number of items in the set
         """
-        return await self.redis.scard(self.name)
+        return await self.redis.scard(self.id)
 
     async def __contains__(self, item):
         """
@@ -113,7 +112,7 @@ class RedisSet:
         Returns:
             True if the item is in the set, False otherwise
         """
-        return await self.redis.sismember(self.name, self.serializer.serialize(item))
+        return await self.redis.sismember(self.id, self.serializer.serialize(item))
 
     async def __len__(self):
         """
@@ -122,7 +121,7 @@ class RedisSet:
         Returns:
             The number of items in the set
         """
-        return await self.redis.scard(self.name)
+        return await self.redis.scard(self.id)
 
     async def to_set(self):
         """
@@ -134,7 +133,7 @@ class RedisSet:
         Returns:
             Python set containing all items from the Redis set
         """
-        members = await self.redis.smembers(self.name)
+        members = await self.redis.smembers(self.id)
         return set(self.serializer.deserialize(m) for m in members)
 
     def __aiter__(self):
@@ -181,7 +180,7 @@ class RedisSet:
             if isinstance(other, RedisSet):
                 other = await other.to_set()
             for item in other:
-                pipe.sadd(self.name, self.serializer.serialize(item))
+                pipe.sadd(self.id, self.serializer.serialize(item))
         await pipe.execute()
 
     async def difference(self, *others):
@@ -197,7 +196,7 @@ class RedisSet:
         Returns:
             Set containing items in this set but not in others
         """
-        sets = [self.name]
+        sets = [self.id]
         for other in others:
             if isinstance(other, RedisSet):
                 sets.append(other.name)
@@ -226,7 +225,7 @@ class RedisSet:
         Returns:
             Set containing all items from this set and others
         """
-        sets = [self.name]
+        sets = [self.id]
         for other in others:
             if isinstance(other, RedisSet):
                 sets.append(other.name)
@@ -253,7 +252,7 @@ class RedisSet:
         Returns:
             Set containing items common to this set and all others
         """
-        sets = [self.name]
+        sets = [self.id]
         for other in others:
             if isinstance(other, RedisSet):
                 sets.append(other.name)

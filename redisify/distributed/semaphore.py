@@ -1,6 +1,8 @@
-import asyncio
 import time
-from redis.asyncio import Redis
+import uuid
+import asyncio
+
+from redisify.config import get_redis
 
 LUA_SEMAPHORE_ACQUIRE = """
 -- KEYS[1] = semaphore key
@@ -42,26 +44,26 @@ class RedisSemaphore:
     acquisition when the count is below the specified limit.
     
     Attributes:
-        redis: The Redis client instance
-        name: The Redis key name for this semaphore
+        id: The Redis key id for this semaphore
         limit: Maximum number of permits that can be acquired
         sleep: Sleep duration between acquisition attempts
         _script_can_acquire: Registered Lua script for checking availability
         _script_acquire: Registered Lua script for acquiring permits
     """
 
-    def __init__(self, redis: Redis, limit: int, name: str, sleep: float = 0.1):
+    def __init__(self, id: str, limit: int, sleep: float = 0.1):
         """
         Initialize a Redis-based distributed semaphore.
         
         Args:
-            redis: Redis client instance
+            id: Unique id for this semaphore
             limit: Maximum number of permits that can be acquired
-            name: Unique name for this semaphore
+            id: Unique id for this semaphore
             sleep: Sleep duration between acquisition attempts in seconds
         """
-        self.redis = redis
-        self.name = f"redisify:semaphore:{name}"
+        self.redis = get_redis()
+        _id = id or str(uuid.uuid4())
+        self.id = f"redisify:semaphore:{_id}"
         self.limit = limit
         self.sleep = sleep
 
@@ -78,7 +80,7 @@ class RedisSemaphore:
         Returns:
             True if a permit can be acquired, False otherwise
         """
-        ok = await self._script_can_acquire(keys=[self.name], args=[self.limit])
+        ok = await self._script_can_acquire(keys=[self.id], args=[self.limit])
         return ok == 1
 
     async def acquire(self):
@@ -97,7 +99,7 @@ class RedisSemaphore:
         """
         while True:
             now = time.time()
-            ok = await self._script_acquire(keys=[self.name], args=[now, self.limit])
+            ok = await self._script_acquire(keys=[self.id], args=[now, self.limit])
             if ok == 1:
                 return True
             await asyncio.sleep(self.sleep)
@@ -113,7 +115,7 @@ class RedisSemaphore:
             It's important to release permits that were previously acquired
             to prevent resource exhaustion.
         """
-        await self.redis.rpop(self.name)
+        await self.redis.rpop(self.id)
 
     async def value(self) -> int:
         """
@@ -122,7 +124,7 @@ class RedisSemaphore:
         Returns:
             The number of currently acquired permits
         """
-        return await self.redis.llen(self.name)
+        return await self.redis.llen(self.id)
 
     async def __aenter__(self):
         """

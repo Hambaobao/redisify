@@ -1,7 +1,8 @@
 import asyncio
 import time
 import uuid
-from redis.asyncio import Redis
+
+from redisify.config import get_redis
 
 
 class RedisLimiter:
@@ -18,7 +19,7 @@ class RedisLimiter:
     
     Attributes:
         redis: The Redis client instance
-        key: The Redis key name for this limiter
+        id: The Redis key id for this limiter
         rate_limit: Maximum number of tokens (bucket capacity)
         time_period: Time period in seconds to fully refill the bucket
         refill_rate: Rate at which tokens are refilled (tokens per second)
@@ -27,8 +28,7 @@ class RedisLimiter:
 
     def __init__(
         self,
-        redis: Redis,
-        name: str | None = None,
+        id: str = None,
         rate_limit: int = 10,
         time_period: float = 60.0,
         sleep: float = 0.1,
@@ -37,15 +37,14 @@ class RedisLimiter:
         Initialize a Redis-based distributed rate limiter.
         
         Args:
-            redis: Redis client instance
-            name: Unique name for this limiter (auto-generated if None)
+            id: Unique id for this limiter (auto-generated if None)
             rate_limit: Maximum number of tokens (bucket capacity)
             time_period: Time period in seconds to fully refill the bucket
             sleep: Sleep duration between acquisition attempts in seconds
         """
-        self.redis = redis
-        _name = name or str(uuid.uuid4())
-        self.key = f"redisify:limiter:{_name}"
+        self.redis = get_redis()
+        _id = id or str(uuid.uuid4())
+        self.id = f"redisify:limiter:{_id}"
         self.rate_limit = rate_limit
         self.time_period = time_period
         self.refill_rate = rate_limit / time_period  # tokens per second
@@ -92,7 +91,7 @@ class RedisLimiter:
         allowed = await self.redis.eval(
             script,
             1,  # numkeys
-            self.key,  # KEYS[1]
+            self.id,  # KEYS[1]
             self.rate_limit,  # ARGV[1]
             self.refill_rate,  # ARGV[2]
             now,  # ARGV[3]
@@ -128,7 +127,7 @@ class RedisLimiter:
         await self.redis.eval(
             script,
             1,  # numkeys
-            self.key,  # KEYS[1]
+            self.id,  # KEYS[1]
             self.rate_limit,  # ARGV[1]
             now,  # ARGV[2]
         )

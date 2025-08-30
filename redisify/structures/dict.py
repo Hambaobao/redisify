@@ -1,8 +1,9 @@
-from typing import Dict, List, Tuple, Any
-from redis.asyncio import Redis
 import uuid
 
+from typing import Dict, Optional
+
 from redisify.serializer import Serializer
+from redisify.config import get_redis
 
 
 class RedisDict:
@@ -18,23 +19,21 @@ class RedisDict:
     and values.
     
     Attributes:
-        redis: The Redis client instance
-        name: The Redis key name for this dictionary
+        id: The Redis key id for this dictionary
         serializer: Serializer instance for object serialization
     """
 
-    def __init__(self, redis: Redis, name: str = None, serializer: Serializer = None):
+    def __init__(self, id: str = None, serializer: Serializer = None):
         """
         Initialize a Redis-based distributed dictionary.
         
         Args:
-            redis: Redis client instance
-            name: Unique name for this dictionary (auto-generated if None)
+            id: Unique id for this dictionary (auto-generated if None)
             serializer: Serializer instance for object serialization
         """
-        self.redis = redis
-        _name = name or str(uuid.uuid4())
-        self.name = f"redisify:dict:{_name}"
+        self.redis = get_redis()
+        _id = id or str(uuid.uuid4())
+        self.id = f"redisify:dict:{_id}"
         self.serializer = serializer or Serializer()
 
     async def __getitem__(self, key):
@@ -51,7 +50,7 @@ class RedisDict:
             KeyError: If the key is not found
         """
         key_s = self.serializer.serialize(key)
-        val = await self.redis.hget(self.name, key_s)
+        val = await self.redis.hget(self.id, key_s)
         if val is None:
             raise KeyError(key)
         return self.serializer.deserialize(val)
@@ -66,7 +65,7 @@ class RedisDict:
         """
         key_s = self.serializer.serialize(key)
         val_s = self.serializer.serialize(value)
-        await self.redis.hset(self.name, key_s, val_s)
+        await self.redis.hset(self.id, key_s, val_s)
 
     async def __delitem__(self, key):
         """
@@ -76,7 +75,7 @@ class RedisDict:
             key: The key to delete (will be serialized for comparison)
         """
         key_s = self.serializer.serialize(key)
-        await self.redis.hdel(self.name, key_s)
+        await self.redis.hdel(self.id, key_s)
 
     async def keys(self):
         """
@@ -85,7 +84,7 @@ class RedisDict:
         Returns:
             List of all keys in the dictionary
         """
-        keys_raw = await self.redis.hkeys(self.name)
+        keys_raw = await self.redis.hkeys(self.id)
         return [self.serializer.deserialize(k) for k in keys_raw]
 
     async def values(self):
@@ -95,7 +94,7 @@ class RedisDict:
         Returns:
             List of all values in the dictionary
         """
-        vals_raw = await self.redis.hvals(self.name)
+        vals_raw = await self.redis.hvals(self.id)
         return [self.serializer.deserialize(v) for v in vals_raw]
 
     async def items(self):
@@ -147,7 +146,7 @@ class RedisDict:
             True if the key exists, False otherwise
         """
         key_s = self.serializer.serialize(key)
-        return await self.redis.hexists(self.name, key_s)
+        return await self.redis.hexists(self.id, key_s)
 
     async def __len__(self) -> int:
         """
@@ -156,7 +155,7 @@ class RedisDict:
         Returns:
             The number of items in the dictionary
         """
-        return await self.redis.hlen(self.name)
+        return await self.redis.hlen(self.id)
 
     async def set(self, key, value):
         """
@@ -170,7 +169,7 @@ class RedisDict:
         """
         key_s = self.serializer.serialize(key)
         val_s = self.serializer.serialize(value)
-        await self.redis.hset(self.name, key_s, val_s)
+        await self.redis.hset(self.id, key_s, val_s)
 
     async def get(self, key, default=None):
         """
@@ -184,7 +183,7 @@ class RedisDict:
             The value associated with the key, or the default value if not found
         """
         key_s = self.serializer.serialize(key)
-        val = await self.redis.hget(self.name, key_s)
+        val = await self.redis.hget(self.id, key_s)
         return self.serializer.deserialize(val) if val is not None else default
 
     async def delete(self, key):
@@ -195,7 +194,7 @@ class RedisDict:
             key: The key to delete (will be serialized for comparison)
         """
         key_s = self.serializer.serialize(key)
-        await self.redis.hdel(self.name, key_s)
+        await self.redis.hdel(self.id, key_s)
 
     async def setdefault(self, key, default):
         """
@@ -212,12 +211,12 @@ class RedisDict:
             The value associated with the key, or the default value if it was set
         """
         key_s = self.serializer.serialize(key)
-        exists = await self.redis.hexists(self.name, key_s)
+        exists = await self.redis.hexists(self.id, key_s)
         if not exists:
             val_s = self.serializer.serialize(default)
-            await self.redis.hset(self.name, key_s, val_s)
+            await self.redis.hset(self.id, key_s, val_s)
             return default
-        val = await self.redis.hget(self.name, key_s)
+        val = await self.redis.hget(self.id, key_s)
         return self.serializer.deserialize(val)
 
     async def clear(self):
@@ -226,7 +225,7 @@ class RedisDict:
         
         This method deletes the entire dictionary from Redis.
         """
-        await self.redis.delete(self.name)
+        await self.redis.delete(self.id)
 
     async def update(self, mapping: dict):
         """
@@ -237,7 +236,7 @@ class RedisDict:
         """
         pipe = self.redis.pipeline()
         for k, v in mapping.items():
-            pipe.hset(self.name, self.serializer.serialize(k), self.serializer.serialize(v))
+            pipe.hset(self.id, self.serializer.serialize(k), self.serializer.serialize(v))
         await pipe.execute()
 
 
