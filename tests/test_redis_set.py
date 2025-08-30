@@ -1,20 +1,27 @@
-from redis.asyncio import Redis
-from redisify import RedisSet
+from redisify import RedisSet, connect_to_redis, reset
 import pytest
+import pytest_asyncio
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def setup_redis():
+    """Setup Redis connection for each test."""
+    connect_to_redis(host="localhost", port=6379, db=0, decode_responses=True)
+    yield
+    reset()
 
 
 @pytest.mark.asyncio
 async def test_redis_set_basic():
-    redis = Redis(decode_responses=True)
-    rset = RedisSet(redis, "test:set")
+    rset = RedisSet("test:set")
     await rset.clear()
 
     await rset.add("a")
     await rset.add("b")
     await rset.add("c")
-    assert await rset.__len__() == 3
-    assert await rset.__contains__("a")
-    assert not await rset.__contains__("x")
+    assert await rset.size() == 3
+    assert await rset.contains("a")
+    assert not await rset.contains("x")
 
     s = await rset.to_set()
     assert s == {"a", "b", "c"}
@@ -28,17 +35,16 @@ async def test_redis_set_basic():
 
     popped = await rset.pop()
     assert popped == "c"
-    assert await rset.__len__() == 0
+    assert await rset.size() == 0
 
     await rset.clear()
-    assert await rset.__len__() == 0
+    assert await rset.size() == 0
 
 
 @pytest.mark.asyncio
 async def test_redis_set_update_and_setops():
-    redis = Redis(decode_responses=True)
-    s1 = RedisSet(redis, "test:set1")
-    s2 = RedisSet(redis, "test:set2")
+    s1 = RedisSet("test:set1")
+    s2 = RedisSet("test:set2")
     await s1.clear()
     await s2.clear()
     await s1.update([1, 2, 3])
@@ -61,8 +67,7 @@ async def test_redis_set_update_and_setops():
 
 @pytest.mark.asyncio
 async def test_redis_set_async_iter():
-    redis = Redis(decode_responses=True)
-    rset = RedisSet(redis, "test:set:iter")
+    rset = RedisSet("test:set:iter")
     await rset.clear()
     await rset.update(["x", "y", "z"])
     items = set()

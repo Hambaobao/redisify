@@ -1,16 +1,21 @@
 import pytest
-from redis.asyncio import Redis
-from redisify import RedisSemaphore
+import pytest_asyncio
+from redisify import RedisSemaphore, connect_to_redis, reset
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def setup_redis():
+    """Setup Redis connection for each test."""
+    connect_to_redis(host="localhost", port=6379, db=0, decode_responses=True)
+    yield
+    reset()
 
 
 @pytest.mark.asyncio
 async def test_redis_semaphore_manual_release():
-    redis = Redis(decode_responses=True)
-    await redis.delete("redisify:semaphore:test:semaphore")  # clear before test
-
-    sem1 = RedisSemaphore(redis, 2, "test:semaphore")
-    sem2 = RedisSemaphore(redis, 2, "test:semaphore")
-    sem3 = RedisSemaphore(redis, 2, "test:semaphore")
+    sem1 = RedisSemaphore("test:semaphore", 2)
+    sem2 = RedisSemaphore("test:semaphore", 2)
+    sem3 = RedisSemaphore("test:semaphore", 2)
 
     await sem1.acquire()
     await sem2.acquire()
@@ -25,10 +30,7 @@ async def test_redis_semaphore_manual_release():
 
 @pytest.mark.asyncio
 async def test_redis_semaphore_async_with():
-    redis = Redis(decode_responses=True)
-    await redis.delete("redisify:semaphore:test:semaphore:with")
-
-    sem = RedisSemaphore(redis, 1, "test:semaphore:with")
+    sem = RedisSemaphore("test:semaphore:with", 1)
 
     async with sem:
         # No direct way to check token in Redis, just ensure context works
@@ -40,12 +42,9 @@ async def test_redis_semaphore_async_with():
 
 @pytest.mark.asyncio
 async def test_redis_semaphore_value():
-    redis = Redis(decode_responses=True)
-    await redis.delete("redisify:semaphore:test:semaphore:value")  # clear before test
-
-    sem1 = RedisSemaphore(redis, 3, "test:semaphore:value")
-    sem2 = RedisSemaphore(redis, 3, "test:semaphore:value")
-    sem3 = RedisSemaphore(redis, 3, "test:semaphore:value")
+    sem1 = RedisSemaphore("test:semaphore:value", 3)
+    sem2 = RedisSemaphore("test:semaphore:value", 3)
+    sem3 = RedisSemaphore("test:semaphore:value", 3)
 
     # Initially, no semaphores are acquired
     assert await sem1.value() == 0
@@ -83,10 +82,7 @@ async def test_redis_semaphore_value():
 
 @pytest.mark.asyncio
 async def test_redis_semaphore_value_with_context_manager():
-    redis = Redis(decode_responses=True)
-    await redis.delete("redisify:semaphore:test:semaphore:value:context")  # clear before test
-
-    sem = RedisSemaphore(redis, 2, "test:semaphore:value:context")
+    sem = RedisSemaphore("test:semaphore:value:context", 2)
 
     # Initially, no semaphores are acquired
     assert await sem.value() == 0

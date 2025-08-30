@@ -16,7 +16,7 @@
 
 ### 🔐 Distributed Synchronization
 - **RedisLock**: Distributed locking mechanism with automatic cleanup
-- **RedisRWLock**: Distributed read-write lock for concurrent readers and exclusive writers
+
 - **RedisSemaphore**: Semaphore for controlling concurrent access
 - **RedisLimiter**: Rate limiting with token bucket algorithm
 
@@ -46,48 +46,38 @@ pip install -e .[test]
 
 ```python
 import asyncio
-from redis.asyncio import Redis
-from redisify import RedisDict, RedisList, RedisQueue, RedisSet, RedisLock, RedisSemaphore, RedisLimiter
-from redisify import RedisRWLock
+from redisify import RedisDict, RedisList, RedisQueue, RedisSet, RedisLock, RedisSemaphore, RedisLimiter, connect_to_redis
 
 async def main():
-    redis = Redis()
+    # Connect to Redis
+    connect_to_redis(host="localhost", port=6379, db=0)
     
     # Dictionary operations
-    rdict = RedisDict(redis, "example:dict")
+    rdict = RedisDict("example:dict")
     await rdict["user:1"] = {"name": "Alice", "age": 30}
     user = await rdict["user:1"]
     print(user)  # {'name': 'Alice', 'age': 30}
     
     # List operations
-    rlist = RedisList(redis, "example:list")
+    rlist = RedisList("example:list")
     await rlist.append("item1")
     await rlist.append("item2")
     first_item = await rlist[0]
     print(first_item)  # item1
     
     # Queue operations
-    rqueue = RedisQueue(redis, "example:queue")
+    rqueue = RedisQueue("example:queue")
     await rqueue.put("task1")
     await rqueue.put("task2")
     task = await rqueue.get()
     print(task)  # task1
     
     # Set operations
-    rset = RedisSet(redis, "example:set")
+    rset = RedisSet("example:set")
     await rset.add("item1")
     await rset.add("item2")
     items = await rset.to_set()
     print(items)  # {'item1', 'item2'}
-
-    # Read-Write Lock (RWLock) usage
-    rwlock = RedisRWLock(redis, "example:rwlock")
-    # Write lock (exclusive)
-    async with rwlock:
-        print("Write lock acquired")
-    # Read lock (shared)
-    async with await rwlock.read_lock():
-        print("Read lock acquired")
 
 asyncio.run(main())
 ```
@@ -101,7 +91,7 @@ A distributed dictionary that supports any serializable Python objects as keys a
 ```python
 from redisify import RedisDict
 
-rdict = RedisDict(redis, "users")
+rdict = RedisDict("users")
 
 # Basic operations
 await rdict["user1"] = {"name": "Alice", "age": 30}
@@ -133,7 +123,7 @@ A distributed list with full indexing and slicing support.
 ```python
 from redisify import RedisList
 
-rlist = RedisList(redis, "tasks")
+rlist = RedisList("tasks")
 
 # Add items
 await rlist.append("task1")
@@ -246,33 +236,7 @@ async with RedisLock(redis, "resource_lock"):
     # Lock is automatically released
 ```
 
-### RedisRWLock
 
-A distributed read-write lock for concurrent readers and exclusive writers.
-
-```python
-from redisify import RedisRWLock
-
-rwlock = RedisRWLock(redis, "resource_rwlock")
-
-# Write lock (exclusive, only one writer, no readers allowed)
-async with rwlock('w'):
-    print("Write lock held (context manager)")
-
-# Read lock (shared, multiple readers allowed, no writers allowed)
-async with await rwlock('r'):
-    print("Read lock held (context manager)")
-```
-
-**Note:**
-- Each concurrent task/thread/coroutine must use its own `RedisRWLock` instance (even if the name is the same).
-- Do **not** share a single lock instance between concurrent tasks, or local state will be corrupted.
-- The lock guarantees distributed correctness via Redis, and local state is only for preventing misuse.
-- `async with lock:` is **deprecated** and will raise a `DeprecationWarning`. Please use `async with rwlock('w')` for write lock, and `async with await rwlock('r')` for read lock.
-- `async with rwlock('r'):` (without await) **is not supported** and will raise an error.
-
-**Typical usage scenarios:**
-- Protecting resources that can be read by many but written by only one at a time (e.g., configuration, caches, etc.)
 
 ### RedisSemaphore
 
@@ -282,7 +246,7 @@ A distributed semaphore for controlling concurrent access.
 from redisify import RedisSemaphore
 
 # Limit to 3 concurrent operations
-semaphore = RedisSemaphore(redis, limit=3, name="api_limit")
+semaphore = RedisSemaphore("api_limit", 3)
 
 async def api_call():
     async with semaphore:
@@ -310,7 +274,7 @@ A distributed rate limiter using token bucket algorithm.
 from redisify import RedisLimiter
 
 # Rate limit: 10 requests per minute
-limiter = RedisLimiter(redis, "api_rate", rate_limit=10, time_period=60)
+limiter = RedisLimiter("api_rate", 10, 60)
 
 async def make_request():
     if await limiter.acquire():
@@ -320,7 +284,7 @@ async def make_request():
         print("Rate limit exceeded")
 
 # Context manager with automatic retry
-async with RedisLimiter(redis, "api_rate", rate_limit=10, time_period=60):
+async with RedisLimiter("api_rate", 10, 60):
     print("Request allowed")
     # Make API call
 ```
@@ -338,7 +302,7 @@ class User(BaseModel):
     age: int
 
 user = User(name="Alice", age=30)
-rdict = RedisDict(redis, "users")
+rdict = RedisDict("users")
 
 # Pydantic models are automatically serialized
 await rdict["user1"] = user
@@ -371,7 +335,7 @@ For detailed API documentation, see the docstrings in the source code:
 - [RedisQueue](redisify/structures/queue.py) - Distributed queue
 - [RedisSet](redisify/structures/set.py) - Distributed set
 - [RedisLock](redisify/distributed/lock.py) - Distributed lock
-- [RedisRWLock](redisify/distributed/lock.py) - Distributed read-write lock
+
 - [RedisSemaphore](redisify/distributed/semaphore.py) - Distributed semaphore
 - [RedisLimiter](redisify/distributed/limiter.py) - Rate limiter
 - [Serializer](redisify/serializer.py) - Object serialization

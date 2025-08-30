@@ -1,6 +1,7 @@
 import uuid
 import asyncio
-from redis.asyncio import Redis
+
+from redisify.config import get_redis
 from redisify.serializer import Serializer
 
 
@@ -20,7 +21,7 @@ class RedisQueue:
     
     Attributes:
         redis: The Redis client instance
-        name: The Redis key name for this queue
+        id: The Redis key id for this queue
         serializer: Serializer instance for object serialization
         maxsize: Maximum number of items in the queue (None for unlimited)
         sleep: Sleep duration between blocking operations
@@ -28,9 +29,8 @@ class RedisQueue:
 
     def __init__(
         self,
-        redis: Redis,
-        name: str = None,
-        maxsize: int = None,
+        id: str = None,
+        size: int = None,
         serializer: Serializer = None,
         sleep: float = 0.1,
     ):
@@ -38,17 +38,16 @@ class RedisQueue:
         Initialize a Redis-based distributed queue.
         
         Args:
-            redis: Redis client instance
-            name: Unique name for this queue (auto-generated if None)
-            maxsize: Maximum number of items in the queue (None for unlimited)
+            id: Unique id for this queue (auto-generated if None)
+            size: Maximum number of items in the queue (None for unlimited)
             serializer: Serializer instance for object serialization
             sleep: Sleep duration between blocking operations in seconds
         """
-        self.redis = redis
-        _name = name or str(uuid.uuid4())
-        self.name = f"redisify:queue:{_name}"
+        self.redis = get_redis()
+        _id = id or str(uuid.uuid4())
+        self.id = f"redisify:queue:{_id}"
         self.serializer = serializer or Serializer()
-        self.maxsize = maxsize
+        self.size = size
         self.sleep = sleep
 
     async def put(self, item):
@@ -61,10 +60,10 @@ class RedisQueue:
         Args:
             item: The item to add to the queue (will be serialized before storage)
         """
-        if self.maxsize is not None:
-            while await self.qsize() >= self.maxsize:
+        if self.size is not None:
+            while await self.qsize() >= self.size:
                 await asyncio.sleep(self.sleep)
-        await self.redis.rpush(self.name, self.serializer.serialize(item))
+        await self.redis.rpush(self.id, self.serializer.serialize(item))
 
     async def put_nowait(self, item):
         """
@@ -79,9 +78,9 @@ class RedisQueue:
         Raises:
             asyncio.QueueFull: If the queue is full and maxsize is set
         """
-        if self.maxsize is not None and await self.qsize() >= self.maxsize:
+        if self.size is not None and await self.qsize() >= self.size:
             raise asyncio.QueueFull("RedisQueue is full")
-        await self.redis.rpush(self.name, self.serializer.serialize(item))
+        await self.redis.rpush(self.id, self.serializer.serialize(item))
 
     async def get(self):
         """
@@ -93,7 +92,7 @@ class RedisQueue:
         Returns:
             The next item from the queue, or None if the queue is empty
         """
-        result = await self.redis.blpop(self.name, timeout=0)
+        result = await self.redis.blpop(self.id, timeout=0)
         return self.serializer.deserialize(result[1]) if result else None
 
     async def get_nowait(self):
@@ -106,7 +105,7 @@ class RedisQueue:
         Returns:
             The next item from the queue, or None if the queue is empty
         """
-        val = await self.redis.lpop(self.name)
+        val = await self.redis.lpop(self.id)
         return self.serializer.deserialize(val) if val else None
 
     async def peek(self):
@@ -119,7 +118,7 @@ class RedisQueue:
         Returns:
             The first item in the queue, or None if the queue is empty
         """
-        items = await self.redis.lrange(self.name, 0, 0)
+        items = await self.redis.lrange(self.id, 0, 0)
         return self.serializer.deserialize(items[0]) if items else None
 
     async def qsize(self) -> int:
@@ -129,7 +128,7 @@ class RedisQueue:
         Returns:
             The number of items currently in the queue
         """
-        return await self.redis.llen(self.name)
+        return await self.redis.llen(self.id)
 
     async def empty(self) -> bool:
         """
@@ -146,7 +145,7 @@ class RedisQueue:
         
         This method deletes the entire queue from Redis.
         """
-        await self.redis.delete(self.name)
+        await self.redis.delete(self.id)
 
     def __aiter__(self):
         """
@@ -168,7 +167,7 @@ class RedisQueue:
         Raises:
             StopAsyncIteration: When iteration is complete
         """
-        item = await self.redis.lindex(self.name, self._iter_index)
+        item = await self.redis.lindex(self.id, self._iter_index)
         if item is None:
             raise StopAsyncIteration
         self._iter_index += 1
