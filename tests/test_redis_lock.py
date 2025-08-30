@@ -1,10 +1,11 @@
 import pytest
+import pytest_asyncio
 import asyncio
 
 from redisify import RedisLock, connect_to_redis, reset
 
 
-@pytest.fixture(autouse=True)
+@pytest_asyncio.fixture(autouse=True)
 async def setup_redis():
     """Setup Redis connection for each test."""
     connect_to_redis(host="localhost", port=6379, db=0, decode_responses=True)
@@ -52,7 +53,6 @@ async def test_redis_lock_blocking():
     assert await lock1.acquire() is True
 
     # Second lock should block until first is released
-    import asyncio
     task = asyncio.create_task(lock2.acquire())
 
     # Wait a bit to ensure second lock is blocked

@@ -1,8 +1,9 @@
 from redisify import RedisSet, connect_to_redis, reset
 import pytest
+import pytest_asyncio
 
 
-@pytest.fixture(autouse=True)
+@pytest_asyncio.fixture(autouse=True)
 async def setup_redis():
     """Setup Redis connection for each test."""
     connect_to_redis(host="localhost", port=6379, db=0, decode_responses=True)

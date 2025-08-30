@@ -16,4 +16,6 @@ __all__ = [
     "RedisSemaphore",
     "RedisLimiter",
     "RedisSet",
+    "connect_to_redis",
+    "reset",
 ]
