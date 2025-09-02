@@ -145,7 +145,7 @@ async def test_getitem_setitem():
     assert await rlist[-2] == "b"
 
     # Test single index assignment
-    await rlist[1] = "x"
+    rlist[1] = "x"
     assert await rlist[1] == "x"
 
     # Test slice access
@@ -155,7 +155,7 @@ async def test_getitem_setitem():
     assert await rlist[::2] == ["a", "c"]  # step=2
 
     # Test slice assignment
-    await rlist[0:2] = ["y", "z"]
+    rlist[0:2] = ["y", "z"]
     assert await rlist.range(0, -1) == ["y", "z", "c"]
 
     # Test index out of range
@@ -349,11 +349,11 @@ async def test_slice_operations():
     assert await rlist[2:5:2] == ["c", "e"]  # slice with step
 
     # Test slice assignment
-    await rlist[1:4] = ["x", "y", "z"]
+    rlist[1:4] = ["x", "y", "z"]
     assert await rlist.range(0, -1) == ["a", "x", "y", "z", "e", "f"]
 
     # Test slice assignment with different size
-    await rlist[1:3] = ["p", "q", "r", "s"]
+    rlist[1:3] = ["p", "q", "r", "s"]
     assert await rlist.range(0, -1) == ["a", "p", "q", "r", "s", "z", "e", "f"]
 
 
@@ -502,7 +502,7 @@ async def test_pydantic_models_slice_operations():
         User(id=10, name="NewUser1", email="new1@example.com"),
         User(id=11, name="NewUser2", email="new2@example.com"),
     ]
-    await rlist[1:3] = new_users
+    rlist[1:3] = new_users
 
     # Verify the change
     all_users = await rlist.range(0, -1)
