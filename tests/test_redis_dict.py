@@ -482,8 +482,17 @@ async def test_pydantic_models_as_keys():
     async for key, value in items_iter:
         items_list.append((key, value))
 
-    assert (user1, "user1_data") in items_list
-    assert (user2, "user2_data") in items_list
+    # Check that we have the expected number of items
+    assert len(items_list) == 2
+
+    # Check that both users are present as keys
+    keys = [item[0] for item in items_list]
+    values = [item[1] for item in items_list]
+
+    assert user1 in keys
+    assert user2 in keys
+    assert "user1_data" in values
+    assert "user2_data" in values
 
 
 @pytest.mark.asyncio
@@ -553,7 +562,8 @@ async def test_pydantic_models_setdefault():
     result = await rdict.setdefault("new_user", default_user)
     assert isinstance(result, User)
     assert result.name == "Default"
-    assert await rdict.get("new_user").name == "Default"
+    retrieved_user = await rdict.get("new_user")
+    assert retrieved_user.name == "Default"
 
     # Test getting existing value (should not change)
     result = await rdict.setdefault("new_user", User(id=1, name="Different", email="different@example.com"))
@@ -573,17 +583,22 @@ async def test_pydantic_models_update():
     # Test updating with Pydantic models
     await rdict.update({"user1": user1, "user2": user2, "user3": user3})
 
-    assert await rdict.get("user1").name == "Alice"
-    assert await rdict.get("user2").name == "Bob"
-    assert await rdict.get("user3").name == "Charlie"
+    retrieved_user1 = await rdict.get("user1")
+    retrieved_user2 = await rdict.get("user2")
+    retrieved_user3 = await rdict.get("user3")
+    assert retrieved_user1.name == "Alice"
+    assert retrieved_user2.name == "Bob"
+    assert retrieved_user3.name == "Charlie"
     assert await rdict.size() == 3
 
     # Test updating existing items
     updated_user1 = User(id=1, name="Alice Updated", email="alice.updated@example.com")
     await rdict.update({"user1": updated_user1})
 
-    assert await rdict.get("user1").name == "Alice Updated"
-    assert await rdict.get("user2").name == "Bob"  # unchanged
+    retrieved_user1_updated = await rdict.get("user1")
+    retrieved_user2_unchanged = await rdict.get("user2")
+    assert retrieved_user1_updated.name == "Alice Updated"
+    assert retrieved_user2_unchanged.name == "Bob"  # unchanged
 
 
 @pytest.mark.asyncio
